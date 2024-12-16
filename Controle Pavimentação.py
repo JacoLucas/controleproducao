@@ -5,7 +5,6 @@ import numpy as np
 from dash import Dash, html, dcc, Output, Input
 import plotly.express as px
 
-# Função para carregar todos os arquivos de produção
 def load_production_files(directory):
     files = glob.glob(os.path.join(directory, "Produção_Diária_Obra_*.xlsx"))
     data = {}
@@ -14,23 +13,31 @@ def load_production_files(directory):
         df = pd.read_excel(file)
         df['Dias'] = pd.to_datetime(df['Dias'])
         df['Mes'] = df['Dias'].dt.to_period('M')
-        df['Semana'] = df['Dias'].dt.to_period('W')  # Ajustar semanas para 1 a 4 dentro de cada mês
-        df['Obra'] = f'Obra {obra_id}'  # Adicionar coluna para identificar a obra
+        df['Semana'] = df['Dias'].dt.to_period('W')
+        df['Obra'] = f'Obra {obra_id}'
+        print(f"{file} - {len(df)} linhas")
         data[obra_id] = df
     return data
 
-# Carregar os arquivos de produção da pasta especificada
-production_data = load_production_files("C:/Users/ljaco/Documents/0-Planejamento_e_Custos/")
+production_data = load_production_files("C:/Users/ljaco/Documents/0-Planejamento_e_Custos/Controle Pavimentação")
 
 app = Dash(__name__)
 server = app.server
+
+activity_labels = {
+    'prod diaria 1': 'Corte (m³)',
+    'prod diaria 2': 'Aterro (m³)',
+    'prod diaria 3': 'Tubos e Aduelas (un)',
+    'prod diaria 4': 'Caixas e PVs (un)',
+    'prod diaria 5': 'Escavação de Drenagem'
+}
 
 app.layout = html.Div([
     html.H1("Produção Obras de Pavimentação"),
     html.Div([
         dcc.Dropdown(
             id='atividade-dropdown',
-            options=[{'label': f'Atividade {i}', 'value': f'prod diaria {i}'} for i in range(1, 6)] + [{'label': 'Todas as Atividades', 'value': 'todas'}],
+            options=[{'label': label, 'value': key} for key, label in activity_labels.items()] + [{'label': 'Todas as Atividades', 'value': 'todas'}],
             value='todas',
             clearable=False,
             style={'width': '100%'}
@@ -66,32 +73,29 @@ app.layout = html.Div([
 ])
 
 @app.callback(
-    Output('mes-dropdown', 'options'),
-    Input('obra-dropdown', 'value')
-)
-def update_mes_dropdown(selected_obra):
-    if selected_obra == 'todas':
-        combined_df = pd.concat(production_data.values())
-        meses = [{'label': str(mes), 'value': str(mes)} for mes in combined_df['Mes'].unique()]
-    else:
-        df = production_data[selected_obra]
-        meses = [{'label': str(mes), 'value': str(mes)} for mes in df['Mes'].unique()]
-    return meses
-
-@app.callback(
-    Output('semana-dropdown', 'options'),
+    [Output('mes-dropdown', 'options'),
+     Output('semana-dropdown', 'options')],
     [Input('obra-dropdown', 'value'),
      Input('mes-dropdown', 'value')]
 )
-def update_semana_dropdown(selected_obra, selected_mes):
+def update_dropdowns(selected_obra, selected_mes):
     if selected_obra == 'todas':
-        combined_df = pd.concat(production_data.values())
+        combined_df = pd.concat(production_data.values()) if production_data else pd.DataFrame()
     else:
-        combined_df = production_data[selected_obra]
+        combined_df = production_data.get(selected_obra, pd.DataFrame())
 
-    filtered_df = combined_df[combined_df['Mes'].astype(str) == selected_mes]
-    semanas = [{'label': 'Todas as Semanas', 'value': 'todas'}] + [{'label': str(semana), 'value': str(semana)} for semana in filtered_df['Semana'].unique()]
-    return semanas
+    if not combined_df.empty and 'Mes' in combined_df.columns:
+        meses = [{'label': str(mes), 'value': str(mes)} for mes in combined_df['Mes'].unique()]
+    else:
+        meses = []
+
+    if not combined_df.empty and 'Mes' in combined_df.columns:
+        filtered_df = combined_df[combined_df['Mes'].astype(str) == selected_mes]
+        semanas = [{'label': 'Todas as Semanas', 'value': 'todas'}] + [{'label': str(semana), 'value': str(semana)} for semana in filtered_df['Semana'].unique()]
+    else:
+        semanas = []
+
+    return meses, semanas
 
 @app.callback(
     [Output('grafico-prod-diaria', 'figure'),
@@ -103,26 +107,31 @@ def update_semana_dropdown(selected_obra, selected_mes):
 )
 def update_graphs(selected_atividade, selected_obra, selected_mes, selected_semana):
     if selected_obra == 'todas':
-        filtered_data = pd.concat(production_data.values())
+        filtered_data = pd.concat(production_data.values()) if production_data else pd.DataFrame()
     else:
-        filtered_data = production_data[selected_obra]
+        filtered_data = production_data.get(selected_obra, pd.DataFrame())
     
-    # Filtrar dados pelo mês selecionado
+    if filtered_data.empty or 'Mes' not in filtered_data.columns:
+        return {}, {}
+
     filtered_df = filtered_data[filtered_data['Mes'].astype(str) == selected_mes]
-
-    # Filtrar dados pela semana selecionada
+    if filtered_df.empty:
+        return {}, {}
+    
     if selected_semana != 'todas':
-        filtered_df = filtered_df[filtered_df['Semana'] == selected_semana]
+        filtered_df = filtered_df[filtered_df['Semana'].astype(str) == selected_semana]
+        if filtered_df.empty:
+            return {}, {}
 
-    # Gráfico de linhas de produção diária por dias para cada atividade
     if selected_atividade == 'todas':
-        prod_diaria_data = filtered_df.melt(id_vars=['Dias', 'Mes', 'Obra'], value_vars=[f'prod diaria {i}' for i in range(1, 6)],
+        prod_diaria_data = filtered_df.melt(id_vars=['Dias', 'Mes', 'Obra'], value_vars=[key for key in activity_labels.keys()],
                                             var_name='Atividade', value_name='Produção Diária')
     else:
         prod_diaria_data = filtered_df.melt(id_vars=['Dias', 'Mes', 'Obra'], value_vars=[selected_atividade],
                                             var_name='Atividade', value_name='Produção Diária')
     
-    # Adicionar coluna combinada para diferenciar por Obra e Atividade
+    prod_diaria_data['Atividade'] = prod_diaria_data['Atividade'].map(activity_labels)
+
     if selected_obra == 'todas':
         prod_diaria_data['Obra_Atividade'] = prod_diaria_data['Obra'] + ' - ' + prod_diaria_data['Atividade']
     else:
@@ -131,28 +140,34 @@ def update_graphs(selected_atividade, selected_obra, selected_mes, selected_sema
     fig_prod_diaria = px.line(
         prod_diaria_data, x='Dias', y='Produção Diária', color='Obra_Atividade', line_group='Obra',
         title='Produção Diária por Atividade e Obra', markers=True,
-        hover_data={"Obra": False, "Dias": False, "Obra_Atividade": False}  # Esconder colunas indesejadas no tooltip
+        hover_data={"Obra": False, "Dias": False, "Obra_Atividade": False}
     )
-    fig_prod_diaria.update_traces(connectgaps=False)  # Esta linha impede que as linhas conectem pontos faltantes
+    fig_prod_diaria.update_traces(connectgaps=True)
 
-    # Preparar dados para gráfico comparativo
-    comparacao_cols = [f'prod acum {i}' for i in range(1, 6)] + [f'prev acum {i}' for i in range(1, 6)]
+    comparacao_cols = {
+        f'prod acum {i}': f'Realizado {i}' for i in range(1, 6)
+    }
+    comparacao_cols.update({
+        f'prev acum {i}': f'Previsto {i}' for i in range(1, 6)
+    })
 
     if selected_obra == 'todas':
         combined_summary = pd.concat([df.groupby('Mes').last().reset_index() for df in production_data.values()])
     else:
         combined_summary = production_data[selected_obra].groupby('Mes').last().reset_index()
 
-    summary_df = combined_summary[combined_summary['Mes'] == selected_mes]
-    melted_comparacao = summary_df.melt(id_vars=['Mes'], value_vars=comparacao_cols, 
+    summary_df = combined_summary[combined_summary['Mes'].astype(str) == selected_mes]
+    melted_comparacao = summary_df.melt(id_vars=['Mes'], value_vars=comparacao_cols.keys(), 
                                         var_name='Tipo', value_name='Produção')
-    melted_comparacao['Atividade'] = melted_comparacao['Tipo'].apply(lambda x: x.split()[2])
-    melted_comparacao['Tipo'] = melted_comparacao['Tipo'].apply(lambda x: 'Realizado Acumulada' if 'prod' in x else 'Produção Prevista')
+    melted_comparacao['Atividade'] = melted_comparacao['Tipo'].map(comparacao_cols)
+    melted_comparacao['Grupo'] = melted_comparacao['Tipo'].str.extract(r'(\d+)')[0]
+    melted_comparacao['Tipo'] = melted_comparacao['Tipo'].apply(lambda x: x.split()[0])
 
     fig_comparativo = px.bar(
-        melted_comparacao, x='Atividade', y='Produção', color='Tipo', barmode='group',
+        melted_comparacao, x='Grupo', y='Produção', color='Tipo', barmode='group',
         title='Comparação de Produção Acumulada vs. Prevista'
     )
+    fig_comparativo.update_layout(bargroupgap=0.1)  # Ajusta o espaçamento entre os grupos de barras
 
     return fig_prod_diaria, fig_comparativo
 
