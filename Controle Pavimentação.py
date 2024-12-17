@@ -5,7 +5,8 @@ import numpy as np
 from dash import Dash, html, dcc, Output, Input
 import plotly.express as px
 
-def load_production_files(directory):
+def load_production_files():
+    directory = os.path.dirname(os.path.abspath(__file__))
     files = glob.glob(os.path.join(directory, "Produção_Diária_Obra_*.xlsx"))
     data = {}
     for file in files:
