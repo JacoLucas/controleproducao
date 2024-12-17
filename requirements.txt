@@ -10,7 +10,7 @@ dash-table==5.0.0
 docutils==0.21.2
 et_xmlfile==2.0.0
 Flask==3.0.3
-gunicorn==20.0.4
+gunicorn==20.0.0
 idna==3.10
 importlib_metadata==8.5.0
 itsdangerous==2.2.0
