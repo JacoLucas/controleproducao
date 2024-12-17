@@ -20,7 +20,7 @@ def load_production_files():
         data[obra_id] = df
     return data
 
-production_data = load_production_files("C:/Users/ljaco/Documents/0-Planejamento_e_Custos/Controle Pavimentação")
+production_data = load_production_files()
 
 app = Dash(__name__)
 server = app.server
