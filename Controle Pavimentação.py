@@ -28,13 +28,13 @@ server = app.server
 activity_labels = {
     'prod diaria 1': 'Corte (m³)',
     'prod diaria 2': 'Aterro (m³)',
-    'prod diaria 3': 'Rachão (ton.)',
+    'prod diaria 3': 'Tubos e Aduelas (un)',
     'prod diaria 4': 'Caixas e PVs (un)',
     'prod diaria 5': 'Escavação de Drenagem'
 }
 
 app.layout = html.Div([
-    html.H1("Acompanhamento de Produção Diária"),
+    html.H1("Acompanhamento da Produdução Diária"),
     html.Div([
         dcc.Dropdown(
             id='atividade-dropdown',
@@ -126,22 +126,22 @@ def update_graphs(selected_atividade, selected_obra, selected_mes, selected_sema
 
     if selected_atividade == 'todas':
         prod_diaria_data = filtered_df.melt(id_vars=['Dias', 'Mes', 'Obra'], value_vars=[key for key in activity_labels.keys()],
-                                            var_name='Atividade', value_name='Produção Diária')
+                                            var_name='Atividade', value_name='Produção')
     else:
         prod_diaria_data = filtered_df.melt(id_vars=['Dias', 'Mes', 'Obra'], value_vars=[selected_atividade],
-                                            var_name='Atividade', value_name='Produção Diária')
+                                            var_name='Atividade', value_name='Produção')
     
     prod_diaria_data['Atividade'] = prod_diaria_data['Atividade'].map(activity_labels)
 
     if selected_obra == 'todas':
-        prod_diaria_data['Obra_Atividade'] = prod_diaria_data['Obra'] + ' - ' + prod_diaria_data['Atividade']
+        prod_diaria_data['Obra_Serviço'] = prod_diaria_data['Obra'] + ' - ' + prod_diaria_data['Atividade']
     else:
-        prod_diaria_data['Obra_Atividade'] = prod_diaria_data['Atividade']
+        prod_diaria_data['Obra_Serviço'] = prod_diaria_data['Atividade']
 
     fig_prod_diaria = px.line(
-        prod_diaria_data, x='Dias', y='Produção Diária', color='Obra_Atividade', line_group='Obra',
-        title='Produção Diária por Atividade e Obra', markers=True,
-        hover_data={"Obra": False, "Dias": False, "Obra_Atividade": False}
+        prod_diaria_data, x='Dias', y='Produção', color='Obra_Serviço', line_group='Obra',
+        title='Produção Diária por Serviço', markers=True,
+        hover_data={"Obra": False, "Dias": False, "Obra_Serviço": False}
     )
     fig_prod_diaria.update_traces(connectgaps=True)
 
@@ -149,13 +149,13 @@ def update_graphs(selected_atividade, selected_obra, selected_mes, selected_sema
         'prod acum 1': 'Corte (m³)',
         'prod acum 2': 'Aterro (m³)',
         'prod acum 3': 'Rachão (ton.)',
-        'prod acum 4': 'Caixas e PVs (un)',
-        'prod acum 5': 'Escavação Drenagem (m³)',
+        'prod acum 4': 'Tubos e Aduelas (un)',
+        'prod acum 5': 'Caixas e PVs (un)',
         'prev acum 1': 'Previsto Corte (m³)',
         'prev acum 2': 'Previsto Aterro (m³)',
         'prev acum 3': 'Previsto Rachão (ton.)',
-        'prev acum 4': 'Previsto Caixas e PVs (un)',
-        'prev acum 5': 'Previsto Escavação Drenagem (m³)'
+        'prev acum 4': 'Previsto Tubos e Aduelas (un)',
+        'prev acum 5': 'Previsto Caixas e PVs (un)'
     }
 
     if selected_obra == 'todas':
@@ -167,16 +167,16 @@ def update_graphs(selected_atividade, selected_obra, selected_mes, selected_sema
     melted_comparacao = summary_df.melt(id_vars=['Mes'], value_vars=comparacao_cols.keys(), 
                                         var_name='Tipo', value_name='Produção')
     melted_comparacao['Atividade'] = melted_comparacao['Tipo'].map(comparacao_cols)
-    melted_comparacao['Grupo'] = melted_comparacao['Tipo'].str.extract(r'(\d+)')[0]
+    melted_comparacao['Serviço'] = melted_comparacao['Tipo'].str.extract(r'(\d+)')[0]
     melted_comparacao['Tipo'] = melted_comparacao['Tipo'].apply(lambda x: x.split()[0])
     
-    # Map the Grupo column to actual activity names for comparison
-    grupo_labels = {
+    # Map the Serviço column to actual activity names for comparison
+    serviço_labels = {
         '1': 'Corte (m³)',
         '2': 'Aterro (m³)',
         '3': 'Rachão (ton.)',
-        '4': 'Caixas e PVs (un)',
-        '5': 'Escavação Drenagem (m³)'
+        '4': 'Tubos e Aduelas (un)',
+        '5': 'Caixas e PVs (un)'
     }
 
     tipo_labels = {
@@ -184,13 +184,13 @@ def update_graphs(selected_atividade, selected_obra, selected_mes, selected_sema
         'prev': 'Previsto'
     }
 
-    melted_comparacao['Grupo'] = melted_comparacao['Grupo'].map(grupo_labels)
+    melted_comparacao['Serviço'] = melted_comparacao['Serviço'].map(serviço_labels)
     melted_comparacao['Tipo'] = melted_comparacao['Tipo'].map(tipo_labels)
 
     fig_comparativo = px.bar(
-        melted_comparacao, x='Grupo', y='Produção', color='Tipo', barmode='group',
-        title='Comparação de Produção Acumulada vs. Prevista',
-        hover_data={"Grupo": False}
+        melted_comparacao, x='Serviço', y='Produção', color='Tipo', barmode='group',
+        title='Comparação de Produção Acumulada',
+        hover_data={"Serviço": False}
     )
     fig_comparativo.update_layout(bargroupgap=0.1)  # Ajusta o espaçamento entre os grupos de barras
 
