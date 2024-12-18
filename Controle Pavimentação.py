@@ -173,4 +173,5 @@ def update_graphs(selected_atividade, selected_obra, selected_mes, selected_sema
     return fig_prod_diaria, fig_comparativo
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 8050)))
+
