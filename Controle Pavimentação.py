@@ -146,11 +146,17 @@ def update_graphs(selected_atividade, selected_obra, selected_mes, selected_sema
     fig_prod_diaria.update_traces(connectgaps=True)
 
     comparacao_cols = {
-        f'prod acum {i}': f'Realizado {i}' for i in range(1, 6)
+        'prod acum 1': 'Corte (m³)',
+        'prod acum 2': 'Aterro (m³)',
+        'prod acum 3': 'Rachão (ton.)',
+        'prod acum 4': 'Tubos e Aduelas (un)',
+        'prod acum 5': 'Caixas e PVs (un)',
+        'prev acum 1': 'Previsto Corte (m³)',
+        'prev acum 2': 'Previsto Aterro (m³)',
+        'prev acum 3': 'Previsto Rachão (ton.)',
+        'prev acum 4': 'Previsto Tubos e Aduelas (un)',
+        'prev acum 5': 'Previsto Caixas e PVs (un)'
     }
-    comparacao_cols.update({
-        f'prev acum {i}': f'Previsto {i}' for i in range(1, 6)
-    })
 
     if selected_obra == 'todas':
         combined_summary = pd.concat([df.groupby('Mes').last().reset_index() for df in production_data.values()])
@@ -163,10 +169,28 @@ def update_graphs(selected_atividade, selected_obra, selected_mes, selected_sema
     melted_comparacao['Atividade'] = melted_comparacao['Tipo'].map(comparacao_cols)
     melted_comparacao['Grupo'] = melted_comparacao['Tipo'].str.extract(r'(\d+)')[0]
     melted_comparacao['Tipo'] = melted_comparacao['Tipo'].apply(lambda x: x.split()[0])
+    
+    # Map the Grupo column to actual activity names for comparison
+    grupo_labels = {
+        '1': 'Corte (m³)',
+        '2': 'Aterro (m³)',
+        '3': 'Rachão (ton.)',
+        '4': 'Tubos e Aduelas (un)',
+        '5': 'Caixas e PVs (un)'
+    }
+
+    tipo_labels = {
+        'prod': 'Realizado',
+        'prev': 'Previsto'
+    }
+
+    melted_comparacao['Grupo'] = melted_comparacao['Grupo'].map(grupo_labels)
+    melted_comparacao['Tipo'] = melted_comparacao['Tipo'].map(tipo_labels)
 
     fig_comparativo = px.bar(
         melted_comparacao, x='Grupo', y='Produção', color='Tipo', barmode='group',
-        title='Comparação de Produção Acumulada vs. Prevista'
+        title='Comparação de Produção Acumulada vs. Prevista',
+        hover_data={"Grupo": False}
     )
     fig_comparativo.update_layout(bargroupgap=0.1)  # Ajusta o espaçamento entre os grupos de barras
 
@@ -174,4 +198,3 @@ def update_graphs(selected_atividade, selected_obra, selected_mes, selected_sema
 
 if __name__ == '__main__':
     app.run_server(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 8050)))
-
