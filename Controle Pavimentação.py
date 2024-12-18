@@ -28,7 +28,7 @@ server = app.server
 activity_labels = {
     'prod diaria 1': 'Corte (m³)',
     'prod diaria 2': 'Aterro (m³)',
-    'prod diaria 3': 'Tubos e Aduelas (un)',
+    'prod diaria 3': 'Rachão (ton.)',
     'prod diaria 4': 'Caixas e PVs (un)',
     'prod diaria 5': 'Escavação de Drenagem'
 }
@@ -149,13 +149,13 @@ def update_graphs(selected_atividade, selected_obra, selected_mes, selected_sema
         'prod acum 1': 'Corte (m³)',
         'prod acum 2': 'Aterro (m³)',
         'prod acum 3': 'Rachão (ton.)',
-        'prod acum 4': 'Tubos e Aduelas (un)',
-        'prod acum 5': 'Caixas e PVs (un)',
+        'prod acum 4': 'Caixas e PVs (un)',
+        'prod acum 5': 'Escavação Drenagem (m³)',
         'prev acum 1': 'Previsto Corte (m³)',
         'prev acum 2': 'Previsto Aterro (m³)',
         'prev acum 3': 'Previsto Rachão (ton.)',
-        'prev acum 4': 'Previsto Tubos e Aduelas (un)',
-        'prev acum 5': 'Previsto Caixas e PVs (un)'
+        'prev acum 4': 'Previsto Caixas e PVs (un)',
+        'prev acum 5': 'Previsto Escavação Drenagem (m³)'
     }
 
     if selected_obra == 'todas':
@@ -175,8 +175,8 @@ def update_graphs(selected_atividade, selected_obra, selected_mes, selected_sema
         '1': 'Corte (m³)',
         '2': 'Aterro (m³)',
         '3': 'Rachão (ton.)',
-        '4': 'Tubos e Aduelas (un)',
-        '5': 'Caixas e PVs (un)'
+        '4': 'Caixas e PVs (un)',
+        '5': 'Escavação Drenagem (m³)'
     }
 
     tipo_labels = {
