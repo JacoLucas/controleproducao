@@ -38,7 +38,7 @@ app.layout = html.Div([
     html.Div([
         dcc.Dropdown(
             id='atividade-dropdown',
-            options=[{'label': label, 'value': key} for key, label in activity_labels.items()] + [{'label': 'Todas as Atividades', 'value': 'todas'}],
+            options=[{'label': label, 'value': key} for key, label in activity_labels.items()] + [{'label': 'Todos os Serviços', 'value': 'todas'}],
             value='todas',
             clearable=False,
             style={'width': '100%'}
