@@ -34,7 +34,7 @@ activity_labels = {
 }
 
 app.layout = html.Div([
-    html.H1("Produção Obras de Pavimentação"),
+    html.H1("Acompanhamento de Produção Diária"),
     html.Div([
         dcc.Dropdown(
             id='atividade-dropdown',
