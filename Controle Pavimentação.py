@@ -143,7 +143,7 @@ def update_graphs(selected_atividade, selected_obra, selected_mes, selected_sema
         title='Produção Diária por Serviço', markers=True,
         hover_data={"Obra": False, "Dias": False, "Obra_Serviço": False}
     )
-    fig_prod_diaria.update_traces(connectgaps=True)
+    fig_prod_diaria.update_traces(connectgaps=False)
 
     comparacao_cols = {
         'prod acum 1': 'Corte (m³)',
