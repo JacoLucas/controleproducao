@@ -1,1 +1,1 @@
-web: python Controle Pavimentação.py
+web: gunicorn Controle Pavimentação.py
