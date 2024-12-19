@@ -10,7 +10,7 @@ import plotly.express as px
 
 def load_production_files():
     directory = os.path.dirname(os.path.abspath(__file__))
-    files = glob.glob(os.path.join(directory, "Produção_Diária_Obra_*.xlsx"))
+    files = glob.glob(os.path.join(directory, "Produção_Diária_Obra_.*\.xlsx"))
     data = {}
     for file in files:
         obra_id = os.path.basename(file).split('_')[-1].split('.')[0]
