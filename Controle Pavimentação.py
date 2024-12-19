@@ -1,9 +1,12 @@
 import os
+import re
 import glob
 import pandas as pd
 import numpy as np
 from dash import Dash, html, dcc, Output, Input
 import plotly.express as px
+
+#### LOAD FROM GITHUB REPOSITORIES ####
 
 def load_production_files():
     directory = os.path.dirname(os.path.abspath(__file__))
@@ -70,7 +73,8 @@ app.layout = html.Div([
     html.Div([
         dcc.Graph(id='grafico-prod-diaria', style={'display': 'inline-block', 'width': '99%'}),
     ]),
-    dcc.Graph(id='grafico-comparativo-mensal')
+    dcc.Graph(id='grafico-comparativo-mensal'),
+    html.Div(id='tabela-valores')
 ])
 
 @app.callback(
@@ -100,29 +104,30 @@ def update_dropdowns(selected_obra, selected_mes):
 
 @app.callback(
     [Output('grafico-prod-diaria', 'figure'),
-     Output('grafico-comparativo-mensal', 'figure')],
+     Output('grafico-comparativo-mensal', 'figure'),
+     Output('tabela-valores', 'children')],
     [Input('atividade-dropdown', 'value'),
      Input('obra-dropdown', 'value'),
      Input('mes-dropdown', 'value'),
      Input('semana-dropdown', 'value')]
 )
-def update_graphs(selected_atividade, selected_obra, selected_mes, selected_semana):
+def update_graphs_and_table(selected_atividade, selected_obra, selected_mes, selected_semana):
     if selected_obra == 'todas':
         filtered_data = pd.concat(production_data.values()) if production_data else pd.DataFrame()
     else:
         filtered_data = production_data.get(selected_obra, pd.DataFrame())
-    
+
     if filtered_data.empty or 'Mes' not in filtered_data.columns:
-        return {}, {}
+        return {}, {}, "Nenhum dado disponível"
 
     filtered_df = filtered_data[filtered_data['Mes'].astype(str) == selected_mes]
     if filtered_df.empty:
-        return {}, {}
+        return {}, {}, "Nenhum dado disponível"
     
     if selected_semana != 'todas':
         filtered_df = filtered_df[filtered_df['Semana'].astype(str) == selected_semana]
         if filtered_df.empty:
-            return {}, {}
+            return {}, {}, "Nenhum dado disponível"
 
     if selected_atividade == 'todas':
         prod_diaria_data = filtered_df.melt(id_vars=['Dias', 'Mes', 'Obra'], value_vars=[key for key in activity_labels.keys()],
@@ -161,16 +166,28 @@ def update_graphs(selected_atividade, selected_obra, selected_mes, selected_sema
     if selected_obra == 'todas':
         combined_summary = pd.concat([df.groupby('Mes').last().reset_index() for df in production_data.values()])
     else:
-        combined_summary = production_data[selected_obra].groupby('Mes').last().reset_index()
+        combined_summary = production_data[selected_obra]
 
-    summary_df = combined_summary[combined_summary['Mes'].astype(str) == selected_mes]
-    melted_comparacao = summary_df.melt(id_vars=['Mes'], value_vars=comparacao_cols.keys(), 
-                                        var_name='Tipo', value_name='Produção')
-    melted_comparacao['Atividade'] = melted_comparacao['Tipo'].map(comparacao_cols)
-    melted_comparacao['Serviço'] = melted_comparacao['Tipo'].str.extract(r'(\d+)')[0]
-    melted_comparacao['Tipo'] = melted_comparacao['Tipo'].apply(lambda x: x.split()[0])
-    
-    # Map the Serviço column to actual activity names for comparison
+    # Encontrar os últimos valores não nulos nas colunas `prev acum {i}` e `prod acum {i}`
+    final_prev_values = {key: combined_summary[key].dropna().iloc[-1] if key in combined_summary.columns else 0 for key in comparacao_cols if key.startswith('prev acum')}
+    final_real_values = {key: combined_summary[key].dropna().iloc[-1] if key in combined_summary.columns else 0 for key in comparacao_cols if key.startswith('prod acum')}
+
+    # Normalizar os valores para porcentagem
+    normalized_real_values = {key: (value / final_prev_values[key.replace('prod', 'prev')]) * 100 if key.replace('prod', 'prev') in final_prev_values else 0 for key, value in final_real_values.items()}
+    normalized_prev_values = {key: 100 for key in final_prev_values.keys()}
+
+    # Criar DataFrame para os valores normalizados
+    final_prev_df = pd.DataFrame([
+        {'Mes': selected_mes, 'Tipo': 'Previsto', 'Produção': value, 'Serviço': key.split()[2]}
+        for key, value in normalized_prev_values.items()
+    ])
+    final_real_df = pd.DataFrame([
+        {'Mes': selected_mes, 'Tipo': 'Realizado', 'Produção': value, 'Serviço': key.split()[2]}
+        for key, value in normalized_real_values.items()
+    ])
+    final_df = pd.concat([final_prev_df, final_real_df], ignore_index=True)
+
+    # Mapear a coluna 'Serviço' para nomes reais das atividades
     serviço_labels = {
         '1': 'Corte (m³)',
         '2': 'Aterro (m³)',
@@ -178,23 +195,48 @@ def update_graphs(selected_atividade, selected_obra, selected_mes, selected_sema
         '4': 'Tubos e Aduelas (un)',
         '5': 'Caixas e PVs (un)'
     }
+    final_df['Serviço'] = final_df['Serviço'].map(serviço_labels)
 
-    tipo_labels = {
-        'prod': 'Realizado',
-        'prev': 'Previsto'
-    }
+    # Definir a ordem das barras para trazer 'Realizado' para frente de 'Previsto'
+    final_df['Tipo'] = pd.Categorical(final_df['Tipo'], categories=['Realizado', 'Previsto'], ordered=True)
 
-    melted_comparacao['Serviço'] = melted_comparacao['Serviço'].map(serviço_labels)
-    melted_comparacao['Tipo'] = melted_comparacao['Tipo'].map(tipo_labels)
+    # Alterar as cores das barras
+    color_discrete_map = {'Previsto': '#FF0000', 'Realizado': '#0000FF'}
 
-    fig_comparativo = px.bar(
-        melted_comparacao, x='Serviço', y='Produção', color='Tipo', barmode='group',
-        title='Comparação de Produção Acumulada',
-        hover_data={"Serviço": False}
-    )
-    fig_comparativo.update_layout(bargroupgap=0.1)  # Ajusta o espaçamento entre os grupos de barras
+    final_df['Produção (%)'] = final_df['Produção']
 
-    return fig_prod_diaria, fig_comparativo
+    if selected_obra != 'todas':
+        fig_comparativo = px.bar(
+            final_df, x='Serviço', y='Produção (%)', color='Tipo', barmode='overlay',
+            title='Comparação de Produção Acumulada em Percentual',
+            hover_data={"Tipo": False},
+            color_discrete_map=color_discrete_map
+        )
+        fig_comparativo.update_layout(bargroupgap=0.1)
+    else:
+        fig_comparativo = {}
+
+    # Criar a tabela com os valores numéricos finais de Realizado e Previsto, apenas se uma obra específica for selecionada
+    if selected_obra != 'todas':
+        tabela_valores = pd.DataFrame({
+            'Serviço': [serviço_labels[key.split()[2]] for key in final_prev_values.keys()],
+            'Previsto': [value for value in final_prev_values.values()],
+            'Realizado': [final_real_values[key] for key in final_real_values.keys()]
+        })
+
+        tabela_html = html.Table([
+            html.Thead(html.Tr([html.Th(col, style={'text-align': 'center', 'border': '1px solid black'}) for col in tabela_valores.columns])),
+            html.Tbody([
+                html.Tr([
+                    html.Td(tabela_valores.iloc[i][col], style={'text-align': 'center', 'border': '1px solid black'}) for col in tabela_valores.columns
+                ]) for i in range(len(tabela_valores))
+            ])
+        ], style={'border-collapse': 'collapse', 'width': '70%', 'margin': 'auto'})
+    else:
+        tabela_html = "Nenhum dado disponível para 'Todas as Obras'"
+
+
+    return fig_prod_diaria, fig_comparativo, tabela_html
 
 if __name__ == '__main__':
     app.run_server(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 8050)))
