@@ -10,7 +10,7 @@ import plotly.express as px
 
 def load_production_files():
     directory = os.path.dirname(os.path.abspath(__file__))
-    files = glob.glob(os.path.join(directory, "Produção_Diária_Obra_.*\.xlsx"))
+    files = glob.glob(os.path.join(directory, "Produção_Diária_Obra_*.xlsx"))
     data = {}
     for file in files:
         obra_id = os.path.basename(file).split('_')[-1].split('.')[0]
@@ -201,7 +201,7 @@ def update_graphs_and_table(selected_atividade, selected_obra, selected_mes, sel
     final_df['Tipo'] = pd.Categorical(final_df['Tipo'], categories=['Realizado', 'Previsto'], ordered=True)
 
     # Alterar as cores das barras
-    color_discrete_map = {'Previsto': '#FF0000', 'Realizado': '#0000FF'}
+    color_discrete_map = {'Previsto': '#FF0000', 'Realizado': '#0099FF'}
 
     final_df['Produção (%)'] = final_df['Produção']
 
