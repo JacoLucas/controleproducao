@@ -180,8 +180,17 @@ def update_graphs_and_table(selected_atividade, selected_obra, selected_mes, sel
     print(combined_summary)
 
     # Encontrar os últimos valores não nulos nas colunas `prev acum {i}` e `prod acum {i}`
-    final_prev_values = {key: combined_summary[key].dropna().iloc[-1] if key in combined_summary.columns else 0 for key in comparacao_cols if key.startswith('prev acum')}
-    final_real_values = {key: combined_summary[key].dropna().iloc[-1] if key in combined_summary.columns else 0 for key in comparacao_cols if key.startswith('prod acum')}
+    final_prev_values = {}
+    final_real_values = {}
+
+    for key in comparacao_cols:
+        if key.startswith('prev acum') and key in combined_summary.columns:
+            final_prev_value = combined_summary[key].dropna()
+            final_prev_values[key] = final_prev_value.iloc[-1] if not final_prev_value.empty else 0
+
+        if key.startswith('prod acum') and key in combined_summary.columns:
+            final_real_value = combined_summary[key].dropna()
+            final_real_values[key] = final_real_value.iloc[-1] if not final_real_value.empty else 0
 
     print("Final prev values:")
     print(final_prev_values)
