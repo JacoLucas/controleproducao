@@ -31,13 +31,13 @@ server = app.server
 activity_labels = {
     'prod diaria 1': 'Corte (m³)',
     'prod diaria 2': 'Aterro (m³)',
-    'prod diaria 3': 'Tubos e Aduelas (un)',
+    'prod diaria 3': 'Rachão (m³)',
     'prod diaria 4': 'Caixas e PVs (un)',
     'prod diaria 5': 'Escavação de Drenagem'
 }
 
 app.layout = html.Div([
-    html.H1("Acompanhamento da Produção Diária"),
+    html.H1("Acompanhamento da Produdução Diária"),
     html.Div([
         dcc.Dropdown(
             id='atividade-dropdown',
@@ -73,10 +73,8 @@ app.layout = html.Div([
     html.Div([
         dcc.Graph(id='grafico-prod-diaria', style={'display': 'inline-block', 'width': '99%'}),
     ]),
-    html.Div([
-        dcc.Graph(id='grafico-comparativo-mensal', style={'display': 'inline-block', 'width': '70%'}),
-        html.Div(id='tabela-valores', style={'display': 'inline-block', 'width': '28%', 'vertical-align': 'top'})
-    ], style={'display': 'flex'})
+    dcc.Graph(id='grafico-comparativo-mensal'),
+    html.Div(id='tabela-valores')
 ])
 
 @app.callback(
@@ -120,18 +118,15 @@ def update_graphs_and_table(selected_atividade, selected_obra, selected_mes, sel
         filtered_data = production_data.get(selected_obra, pd.DataFrame())
 
     if filtered_data.empty or 'Mes' not in filtered_data.columns:
-        print("No data available or 'Mes' column missing.")
         return {}, {}, "Nenhum dado disponível"
 
     filtered_df = filtered_data[filtered_data['Mes'].astype(str) == selected_mes]
     if filtered_df.empty:
-        print("No data for the selected month.")
         return {}, {}, "Nenhum dado disponível"
     
     if selected_semana != 'todas':
         filtered_df = filtered_df[filtered_df['Semana'].astype(str) == selected_semana]
         if filtered_df.empty:
-            print("No data for the selected week.")
             return {}, {}, "Nenhum dado disponível"
 
     if selected_atividade == 'todas':
@@ -147,9 +142,6 @@ def update_graphs_and_table(selected_atividade, selected_obra, selected_mes, sel
         prod_diaria_data['Obra_Serviço'] = prod_diaria_data['Obra'] + ' - ' + prod_diaria_data['Atividade']
     else:
         prod_diaria_data['Obra_Serviço'] = prod_diaria_data['Atividade']
-
-    print("Production data for daily production:")
-    print(prod_diaria_data)
 
     fig_prod_diaria = px.line(
         prod_diaria_data, x='Dias', y='Produção', color='Obra_Serviço', line_group='Obra',
@@ -176,26 +168,9 @@ def update_graphs_and_table(selected_atividade, selected_obra, selected_mes, sel
     else:
         combined_summary = production_data[selected_obra]
 
-    print("Combined summary data:")
-    print(combined_summary)
-
     # Encontrar os últimos valores não nulos nas colunas `prev acum {i}` e `prod acum {i}`
-    final_prev_values = {}
-    final_real_values = {}
-
-    for key in comparacao_cols:
-        if key.startswith('prev acum') and key in combined_summary.columns:
-            final_prev_value = combined_summary[key].dropna()
-            final_prev_values[key] = final_prev_value.iloc[-1] if not final_prev_value.empty else 0
-
-        if key.startswith('prod acum') and key in combined_summary.columns:
-            final_real_value = combined_summary[key].dropna()
-            final_real_values[key] = final_real_value.iloc[-1] if not final_real_value.empty else 0
-
-    print("Final prev values:")
-    print(final_prev_values)
-    print("Final real values:")
-    print(final_real_values)
+    final_prev_values = {key: combined_summary[key].dropna().iloc[-1] if key in combined_summary.columns else 0 for key in comparacao_cols if key.startswith('prev acum')}
+    final_real_values = {key: combined_summary[key].dropna().iloc[-1] if key in combined_summary.columns else 0 for key in comparacao_cols if key.startswith('prod acum')}
 
     # Normalizar os valores para porcentagem
     normalized_real_values = {key: (value / final_prev_values[key.replace('prod', 'prev')]) * 100 if key.replace('prod', 'prev') in final_prev_values else 0 for key, value in final_real_values.items()}
